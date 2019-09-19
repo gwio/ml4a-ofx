@@ -5,6 +5,7 @@
 #include "ofxTSNE.h"
 #include "ofxAssignment.h"
 #include "ofxGui.h"
+#include "ofxJSON.h"
 
 #define THUMB_SIZE 256
 #define RELEASE
@@ -52,19 +53,25 @@ public:
     vector<vector<float> > encodings;
     vector<vector<double> > tsneVecs;
     vector<ofVec2f> solvedGrid;
+    vector<ofVec2f> aniPos;
+    float aniPct;
     
     ofxPanel gui;
     ofxButton bAnalyzeNew, bSave, bLoad, bSaveScreenshot;
     ofParameter<bool> tViewGrid;
+    void gridBtnEvent(bool & grid_);
     ofParameter<float> scale, imageSize;
     ofParameter<float> perplexity, theta;
     ofParameter<int> numImages;
+    ofParameter<float> animationSpeed;
     
     int numGridRows, numGridCols;
     ofVec2f position;
     string ccvPath;
     bool isAnalyzing;
     string progressMsg;
+    
+    float easeOutCubic(float) ;
 };
 
 

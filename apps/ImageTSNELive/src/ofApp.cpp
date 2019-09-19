@@ -24,7 +24,7 @@ void ofApp::scanDirectoryRecursive(ofDirectory dir) {
 void ofApp::setup(){
     
 #ifdef RELEASE
-    ccvPath = ofToDataPath("image-net-2012.sqlite3");
+    ccvPath = "/Users/chris/of/ml4a-ofx/data/image-net-2012.sqlite3";
 #else
     ccvPath = ofToDataPath("../../../../data/image-net-2012.sqlite3");
 #endif
@@ -40,7 +40,9 @@ void ofApp::setup(){
     ofParameterGroup gView, gAnalyze;
     gView.setName("view");
     gView.add(tViewGrid.set("view as grid", false));
+    tViewGrid.addListener(this, &ofApp::gridBtnEvent);
     gView.add(scale.set("scale", 4.0, 1.0, 10.0));
+    gView.add(animationSpeed.set("AniSpeed", 0.1, 0.001, 0.01));
     gView.add(imageSize.set("image size", 1.0, 0.0, 2.0));
     gAnalyze.setName("analyze");
     gAnalyze.add(numImages.set("max num images", 500, 1, 8000));
@@ -57,6 +59,14 @@ void ofApp::setup(){
     
     position.set(0, 0);
     isAnalyzing = false;
+    
+    aniPct = 0.0;
+}
+//--------------------------------------------------------------
+
+void ofApp::gridBtnEvent(bool & grid_){
+    aniPct = 0.0;
+    //cout << aniPct << endl;
 }
 
 //--------------------------------------------------------------
@@ -84,8 +94,11 @@ void ofApp::analyzeDirectory(string imagesPath){
     encodings.clear();
     tsneVecs.clear();
     solvedGrid.clear();
+    aniPos.clear();
     isAnalyzing = true;
     ofLog() << "Encoding images...";
+    
+    aniPos.resize(imageFiles.size());
 }
 
 //--------------------------------------------------------------
@@ -166,23 +179,60 @@ void ofApp::drawThumbs(){
         return;
     }
     
+    float maxDim = max(scale * ofGetWidth(), scale * ofGetHeight());
+
+    
     if (tViewGrid) {
         imageSize = (scale * ofGetWidth()) / (thumbs[0].image.getWidth() * numGridCols);
         for (int i=0; i<solvedGrid.size(); i++) {
-            float x = ofMap(solvedGrid[i].x, 0, 1, 0, imageSize * thumbs[i].image.getWidth() * (numGridCols-1));
-            float y = ofMap(solvedGrid[i].y, 0, 1, 0, imageSize * thumbs[i].image.getHeight() * (numGridRows-1));
-            thumbs[i].image.draw(x, y, imageSize * thumbs[i].image.getWidth(), imageSize * thumbs[i].image.getHeight());
-            //ofDrawBitmapStringHighlight(ofToString(thumbs[i].idx), x+2, y+13);
+            
+            float xGrid = ofMap(solvedGrid[i].x, 0, 1, 0, imageSize * thumbs[i].image.getWidth() * (numGridCols-1));
+            float yGrid = ofMap(solvedGrid[i].y, 0, 1, 0, imageSize * thumbs[i].image.getHeight() * (numGridRows-1));
+            
+            float x = ofMap(thumbs[i].point.x, 0, 1, 0, maxDim);
+            float y = ofMap(thumbs[i].point.y, 0, 1, 0, maxDim);
+            
+            ofPolyline tempL;
+             tempL.addVertex(ofPoint(x,y));
+            tempL.addVertex(ofPoint(xGrid,yGrid));
+           
+         
+            if(aniPct < 1.0){
+                aniPos[i] = tempL.getPointAtPercent(easeOutCubic(aniPct));
+            } else if (aniPct >= 1.0){
+                aniPos[i] = tempL.getPointAtPercent(1.0);
+            }
+            
+            thumbs[i].image.draw(aniPos[i].x, aniPos[i].y, imageSize * thumbs[i].image.getWidth(), imageSize * thumbs[i].image.getHeight());
         }
     }
     else {
         float maxDim = max(scale * ofGetWidth(), scale * ofGetHeight());
         for (int i=0; i<thumbs.size(); i++) {
+          
+            float xGrid = ofMap(solvedGrid[i].x, 0, 1, 0, imageSize * thumbs[i].image.getWidth() * (numGridCols-1));
+            float yGrid = ofMap(solvedGrid[i].y, 0, 1, 0, imageSize * thumbs[i].image.getHeight() * (numGridRows-1));
+            
             float x = ofMap(thumbs[i].point.x, 0, 1, 0, maxDim);
             float y = ofMap(thumbs[i].point.y, 0, 1, 0, maxDim);
-            thumbs[i].image.draw(x, y, imageSize * thumbs[i].image.getWidth(), imageSize * thumbs[i].image.getHeight());
+            
+            ofPolyline tempL;
+            tempL.addVertex(ofPoint(xGrid,yGrid));
+            tempL.addVertex(ofPoint(x,y));
+            
+       
+            
+            if(aniPct < 1.0){
+                aniPos[i] = tempL.getPointAtPercent(easeOutCubic(aniPct));
+            } else if(aniPct >= 1.0){
+                aniPos[i] = tempL.getPointAtPercent(1.0);
+            }
+            
+            thumbs[i].image.draw(aniPos[i].x, aniPos[i].y, imageSize * thumbs[i].image.getWidth(), imageSize * thumbs[i].image.getHeight());
         }
     }
+    
+   if(aniPct < 1.0) aniPct += animationSpeed;
 }
 
 //--------------------------------------------------------------
@@ -233,6 +283,8 @@ void ofApp::solveToGrid() {
     for (int t=0; t<sizeGrid; t++) {tsnePoints.push_back(thumbs[t].point);}
     vector<ofVec2f> gridPoints = makeGrid(numGridCols, numGridRows);
     solvedGrid = solver.match(tsnePoints, gridPoints, false);
+    
+    
 }
 
 //--------------------------------------------------------------
@@ -250,7 +302,8 @@ void ofApp::loadJSON(string jsonPath) {
 
     int idx = 0;
     file >> js;
-    for (auto & entry: js) {
+    for (int i = 0; i < js.size(); i++) {
+        auto entry = js.at(i);
         if(!entry.empty()) {
             string path = entry["path"];
             float x = entry["point"][0];
@@ -272,6 +325,7 @@ void ofApp::loadJSON(string jsonPath) {
             idx++;
         }
     }
+    aniPos.resize(thumbs.size());
     //resizeThumbs(THUMB_SIZE, THUMB_SIZE);
 }
 
@@ -354,4 +408,11 @@ void ofApp::mouseDragged(int x, int y, int button){
 //--------------------------------------------------------------
 void ofApp::mouseScrolled(ofMouseEventArgs &evt) {
     scale.set(ofClamp(scale + 0.01 * (evt.scrollY), 1.0, 10.0));
+}
+
+//--------------------------------------------------------------
+
+
+float ofApp::easeOutCubic(float pct_){
+return 1 + (--pct_) * pct_ * pct_;
 }
