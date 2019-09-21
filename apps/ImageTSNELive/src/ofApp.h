@@ -59,6 +59,7 @@ public:
     ofxPanel gui;
     ofxButton bAnalyzeNew, bSave, bLoad, bSaveScreenshot;
     ofParameter<bool> tViewGrid;
+    ofParameter<bool> showLines;
     void gridBtnEvent(bool & grid_);
     ofParameter<float> scale, imageSize;
     ofParameter<float> spacingX, spacingY;
@@ -72,7 +73,9 @@ public:
     bool isAnalyzing;
     string progressMsg;
     
-    float easeOutCubic(float) ;
+    float easeOutCubic(float);
+    
+    ofMesh nLines;
 };
 
 

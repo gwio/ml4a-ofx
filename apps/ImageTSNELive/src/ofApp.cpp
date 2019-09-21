@@ -46,6 +46,7 @@ void ofApp::setup(){
     gView.add(imageSize.set("image size", 1.0, 0.0, 2.0));
     gView.add(spacingX.set("spacing/margin X", 0.85, 0.5, 1.0));
     gView.add(spacingY.set("spacing/margin Y", 1.0, 1.0, 2.0));
+    gView.add(showLines.set("Show Lines", false));
     gAnalyze.setName("analyze");
     gAnalyze.add(numImages.set("max num images", 500, 1, 8000));
     gAnalyze.add(perplexity.set("perplexity", 50, 5, 80));
@@ -63,6 +64,7 @@ void ofApp::setup(){
     isAnalyzing = false;
     
     aniPct = 0.0;
+    nLines.setMode(OF_PRIMITIVE_LINE_STRIP);
 }
 //--------------------------------------------------------------
 
@@ -101,6 +103,7 @@ void ofApp::analyzeDirectory(string imagesPath){
     ofLog() << "Encoding images...";
     
     aniPos.resize(imageFiles.size());
+    nLines.getVertices().resize(imageFiles.size()-1);
 }
 
 //--------------------------------------------------------------
@@ -164,18 +167,24 @@ void ofApp::update(){
     if (isAnalyzing) {
         updateAnalysis();
     }
+    
+    for (int i = 0; i < thumbs.size(); i++){
+       if(showLines) nLines.setVertex(i, glm::vec3(aniPos[i].x , aniPos[i].y ,0));
+    }
 }
 
 //--------------------------------------------------------------
 void ofApp::draw(){
     ofBackgroundGradient(ofColor(0), ofColor(100));
     ofPushMatrix();
+    if(showLines) nLines.draw();
     if (isAnalyzing) {
         ofDrawBitmapString(progressMsg, 250, 20);
     } else {
         ofTranslate(position.x * (scale - 1.0), position.y * (scale - 1.0));
         drawThumbs();
     }
+    
     ofPopMatrix();
     gui.draw();
     
@@ -216,7 +225,11 @@ void ofApp::drawThumbs(){
             
             float yOffset = (imageSize * THUMB_SIZE *spacingY * 0.5) - ((imageSize * thumbs[i].image.getHeight()*spacingX)/2);
 
-            thumbs[i].image.draw(aniPos[i].x + xOffset, aniPos[i].y + yOffset, imageSize * thumbs[i].image.getWidth()*spacingX, imageSize * thumbs[i].image.getHeight()*spacingX);
+            aniPos[i].x += xOffset;
+            aniPos[i].y += yOffset;
+            
+            thumbs[i].image.draw(aniPos[i].x, aniPos[i].y, imageSize * thumbs[i].image.getWidth()*spacingX, imageSize * thumbs[i].image.getHeight()*spacingX);
+           // nLines.setVertex(i, glm::vec3(aniPos[i].x + xOffset, aniPos[i].y + + yOffset,0));
         }
     }
     else {
@@ -243,10 +256,12 @@ void ofApp::drawThumbs(){
             
             float yOffset = (imageSize * THUMB_SIZE *spacingY * 0.5) - ((imageSize * thumbs[i].image.getHeight()*spacingX)/2);
             
-            thumbs[i].image.draw(aniPos[i].x + xOffset, aniPos[i].y + yOffset, imageSize * thumbs[i].image.getWidth()*spacingX, imageSize * thumbs[i].image.getHeight()*spacingX);
+            aniPos[i].x += xOffset;
+            aniPos[i].y += yOffset;
+            
+            thumbs[i].image.draw(aniPos[i].x, aniPos[i].y, imageSize * thumbs[i].image.getWidth()*spacingX, imageSize * thumbs[i].image.getHeight()*spacingX);
         }
     }
-    
    if(aniPct < 1.0) aniPct += animationSpeed;
 }
 
@@ -317,7 +332,7 @@ void ofApp::loadJSON(string jsonPath) {
 
     int idx = 0;
     file >> js;
-    for (int i = 0; i < 200; i++) {
+    for (int i = 0; i < js.size(); i++) {
         auto entry = js.at(i);
         if(!entry.empty()) {
             string path = entry["path"];
@@ -344,6 +359,7 @@ void ofApp::loadJSON(string jsonPath) {
         }
     }
     aniPos.resize(thumbs.size());
+    nLines.getVertices().resize(thumbs.size()-1);
     //resizeThumbs(THUMB_SIZE, THUMB_SIZE);
 }
 
