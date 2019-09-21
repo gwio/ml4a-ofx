@@ -61,6 +61,7 @@ public:
     ofParameter<bool> tViewGrid;
     void gridBtnEvent(bool & grid_);
     ofParameter<float> scale, imageSize;
+    ofParameter<float> spacingX, spacingY;
     ofParameter<float> perplexity, theta;
     ofParameter<int> numImages;
     ofParameter<float> animationSpeed;

@@ -42,8 +42,10 @@ void ofApp::setup(){
     gView.add(tViewGrid.set("view as grid", false));
     tViewGrid.addListener(this, &ofApp::gridBtnEvent);
     gView.add(scale.set("scale", 4.0, 1.0, 10.0));
-    gView.add(animationSpeed.set("AniSpeed", 0.1, 0.001, 0.01));
+    gView.add(animationSpeed.set("AniSpeed", 0.01, 0.001, 0.01));
     gView.add(imageSize.set("image size", 1.0, 0.0, 2.0));
+    gView.add(spacingX.set("spacing/margin X", 0.85, 0.5, 1.0));
+    gView.add(spacingY.set("spacing/margin Y", 1.0, 1.0, 2.0));
     gAnalyze.setName("analyze");
     gAnalyze.add(numImages.set("max num images", 500, 1, 8000));
     gAnalyze.add(perplexity.set("perplexity", 50, 5, 80));
@@ -118,12 +120,18 @@ void ofApp::updateAnalysis(){
         thumb.path = imageFiles[currIdx].getAbsolutePath();
         thumb.image.load(thumb.path);
         // resize thumb
+        //deactivated cropping
+        /*
         if (thumb.image.getWidth() > thumb.image.getHeight()) {
             thumb.image.crop((thumb.image.getWidth()-thumb.image.getHeight()) * 0.5, 0, thumb.image.getHeight(), thumb.image.getHeight());
         } else if (thumb.image.getHeight() > thumb.image.getWidth()) {
             thumb.image.crop(0, (thumb.image.getHeight()-thumb.image.getWidth()) * 0.5, thumb.image.getWidth(), thumb.image.getWidth());
         }
-        thumb.image.resize(THUMB_SIZE, THUMB_SIZE);
+         */
+        float ratio = THUMB_SIZE/thumb.image.getWidth();
+        //running the directory analysis seems to crash when it gets greyscale images, so make sure here to convert to rbg to be safe, running existing json seems ok
+        thumb.image.setImageType(OF_IMAGE_COLOR);
+        thumb.image.resize(thumb.image.getWidth()*ratio, thumb.image.getHeight()*ratio);
         thumbs.push_back(thumb);
         progressMsg = "loaded "+ofToString(thumbs.size())+"/"+ofToString(numImages)+" images.";
     }
@@ -181,13 +189,16 @@ void ofApp::drawThumbs(){
     
     float maxDim = max(scale * ofGetWidth(), scale * ofGetHeight());
 
+    imageSize = (scale * ofGetWidth()) / (THUMB_SIZE * numGridCols);
+
+    float xOffset = (imageSize*THUMB_SIZE - (imageSize*THUMB_SIZE*spacingX))/2;
+   // float yOffset = imageSize * THUMB_SIZE *spacingY * 0.5;
     
     if (tViewGrid) {
-        imageSize = (scale * ofGetWidth()) / (thumbs[0].image.getWidth() * numGridCols);
         for (int i=0; i<solvedGrid.size(); i++) {
             
-            float xGrid = ofMap(solvedGrid[i].x, 0, 1, 0, imageSize * thumbs[i].image.getWidth() * (numGridCols-1));
-            float yGrid = ofMap(solvedGrid[i].y, 0, 1, 0, imageSize * thumbs[i].image.getHeight() * (numGridRows-1));
+            float xGrid = ofMap(solvedGrid[i].x, 0, 1, 0, imageSize * THUMB_SIZE * (numGridCols-1));
+            float yGrid = ofMap(solvedGrid[i].y, 0, 1, 0, imageSize * THUMB_SIZE * (numGridRows-1))*spacingY;
             
             float x = ofMap(thumbs[i].point.x, 0, 1, 0, maxDim);
             float y = ofMap(thumbs[i].point.y, 0, 1, 0, maxDim);
@@ -203,15 +214,17 @@ void ofApp::drawThumbs(){
                 aniPos[i] = tempL.getPointAtPercent(1.0);
             }
             
-            thumbs[i].image.draw(aniPos[i].x, aniPos[i].y, imageSize * thumbs[i].image.getWidth(), imageSize * thumbs[i].image.getHeight());
+            float yOffset = (imageSize * THUMB_SIZE *spacingY * 0.5) - ((imageSize * thumbs[i].image.getHeight()*spacingX)/2);
+
+            thumbs[i].image.draw(aniPos[i].x + xOffset, aniPos[i].y + yOffset, imageSize * thumbs[i].image.getWidth()*spacingX, imageSize * thumbs[i].image.getHeight()*spacingX);
         }
     }
     else {
         float maxDim = max(scale * ofGetWidth(), scale * ofGetHeight());
         for (int i=0; i<thumbs.size(); i++) {
           
-            float xGrid = ofMap(solvedGrid[i].x, 0, 1, 0, imageSize * thumbs[i].image.getWidth() * (numGridCols-1));
-            float yGrid = ofMap(solvedGrid[i].y, 0, 1, 0, imageSize * thumbs[i].image.getHeight() * (numGridRows-1));
+            float xGrid = ofMap(solvedGrid[i].x, 0, 1, 0, imageSize * THUMB_SIZE * (numGridCols-1));
+            float yGrid = ofMap(solvedGrid[i].y, 0, 1, 0, imageSize * THUMB_SIZE * (numGridRows-1))*spacingY;
             
             float x = ofMap(thumbs[i].point.x, 0, 1, 0, maxDim);
             float y = ofMap(thumbs[i].point.y, 0, 1, 0, maxDim);
@@ -228,7 +241,9 @@ void ofApp::drawThumbs(){
                 aniPos[i] = tempL.getPointAtPercent(1.0);
             }
             
-            thumbs[i].image.draw(aniPos[i].x, aniPos[i].y, imageSize * thumbs[i].image.getWidth(), imageSize * thumbs[i].image.getHeight());
+            float yOffset = (imageSize * THUMB_SIZE *spacingY * 0.5) - ((imageSize * thumbs[i].image.getHeight()*spacingX)/2);
+            
+            thumbs[i].image.draw(aniPos[i].x + xOffset, aniPos[i].y + yOffset, imageSize * thumbs[i].image.getWidth()*spacingX, imageSize * thumbs[i].image.getHeight()*spacingX);
         }
     }
     
@@ -302,7 +317,7 @@ void ofApp::loadJSON(string jsonPath) {
 
     int idx = 0;
     file >> js;
-    for (int i = 0; i < js.size(); i++) {
+    for (int i = 0; i < 200; i++) {
         auto entry = js.at(i);
         if(!entry.empty()) {
             string path = entry["path"];
@@ -315,12 +330,15 @@ void ofApp::loadJSON(string jsonPath) {
             thumb.path = path;
             thumb.image.load(path);
             // resize thumb
+            /*
             if (thumb.image.getWidth() > thumb.image.getHeight()) {
                 thumb.image.crop((thumb.image.getWidth()-thumb.image.getHeight()) * 0.5, 0, thumb.image.getHeight(), thumb.image.getHeight());
             } else if (thumb.image.getHeight() > thumb.image.getWidth()) {
                 thumb.image.crop(0, (thumb.image.getHeight()-thumb.image.getWidth()) * 0.5, thumb.image.getWidth(), thumb.image.getWidth());
             }
-            thumb.image.resize(THUMB_SIZE, THUMB_SIZE);
+             */
+            float ratio = THUMB_SIZE/thumb.image.getWidth();
+            thumb.image.resize(thumb.image.getWidth()*ratio, thumb.image.getHeight()*ratio);
             thumbs.push_back(thumb);
             idx++;
         }
