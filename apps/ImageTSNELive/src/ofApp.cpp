@@ -46,7 +46,7 @@ void ofApp::setup(){
     gView.add(imageSize.set("image size", 1.0, 0.0, 2.0));
     gView.add(spacingX.set("spacing/margin X", 0.85, 0.5, 1.0));
     gView.add(spacingY.set("spacing/margin Y", 1.0, 1.0, 2.0));
-    gView.add(showLines.set("Show Lines", false));
+    gView.add(showLines.set("Show Lines", true));
     gAnalyze.setName("analyze");
     gAnalyze.add(numImages.set("max num images", 500, 1, 8000));
     gAnalyze.add(perplexity.set("perplexity", 50, 5, 80));
@@ -65,6 +65,10 @@ void ofApp::setup(){
     
     aniPct = 0.0;
     nLines.setMode(OF_PRIMITIVE_LINE_STRIP);
+    nLines.setUsage(GL_DYNAMIC_DRAW);
+    
+    
+    ofDisableDepthTest();
 }
 //--------------------------------------------------------------
 
@@ -104,6 +108,9 @@ void ofApp::analyzeDirectory(string imagesPath){
     
     aniPos.resize(imageFiles.size());
     nLines.getVertices().resize(imageFiles.size()-1);
+    for (int i = 0; i < nLines.getVertices().size(); i++){
+        nLines.addColor(ofColor(255,0,0,50));
+    }
 }
 
 //--------------------------------------------------------------
@@ -169,24 +176,39 @@ void ofApp::update(){
     }
     
     for (int i = 0; i < thumbs.size(); i++){
-       if(showLines) nLines.setVertex(i, glm::vec3(aniPos[i].x , aniPos[i].y ,0));
+     nLines.setVertex(i, glm::vec3(aniPos[i].x , aniPos[i].y ,0));
     }
 }
 
 //--------------------------------------------------------------
 void ofApp::draw(){
+   // ofDisableDepthTest();
+
     ofBackgroundGradient(ofColor(0), ofColor(100));
+    
+
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LESS);
+    
     ofPushMatrix();
+   
     if(showLines) nLines.draw();
+    
+     glDisable(GL_DEPTH_TEST);
     if (isAnalyzing) {
         ofDrawBitmapString(progressMsg, 250, 20);
     } else {
         ofTranslate(position.x * (scale - 1.0), position.y * (scale - 1.0));
+    
         drawThumbs();
     }
     
+    
+  
     ofPopMatrix();
-    gui.draw();
+    
+    
+   gui.draw();
     
 }
 
@@ -360,6 +382,9 @@ void ofApp::loadJSON(string jsonPath) {
     }
     aniPos.resize(thumbs.size());
     nLines.getVertices().resize(thumbs.size()-1);
+    for (int i = 0; i < nLines.getVertices().size(); i++){
+        nLines.addColor(ofColor(255,0,0,50));
+    }
     //resizeThumbs(THUMB_SIZE, THUMB_SIZE);
 }
 

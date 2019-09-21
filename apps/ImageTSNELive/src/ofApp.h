@@ -75,7 +75,8 @@ public:
     
     float easeOutCubic(float);
     
-    ofMesh nLines;
+    ofVboMesh nLines;
+    
 };
 
 
